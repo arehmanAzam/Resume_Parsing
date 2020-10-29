@@ -10,6 +10,7 @@ import spacy
 from spacy.lang.en import English
 from spacy import displacy
 from find_job_titles import Finder
+from dateutil import parser as date_parser
 
 class Extraction:
 
@@ -185,13 +186,14 @@ class Extraction:
     def entity_recognition(self,text):
         try:
             entity=self.nlp(text)
-            entities = [(i, i.label_, i.label) for i in entity.ents]
+            entities = {i:i.label_ for i in entity.ents}
             return entities
         except Exception as e:
             print("Error in Extraction.entity_recognition function, Exception: %s" % e)
     def experience(self):
         try:
             experience_section=''
+            result_exp=[]
             employ_chunks=[]
             print(self.segmented_text['work_and_employment'])
             if self.segmented_text['work_and_employment'] != {}:
@@ -199,13 +201,41 @@ class Extraction:
                 experience_section=' '.join(employ_chunks)
             if experience_section !=None or experience_section !='':
                 service_tenures=self.experience_years(experience_section)
+                job_flag=True
                 if len(service_tenures)>0:
+                    count=0
                     for tenure in service_tenures:
-                        match = [chunk for chunk in employ_chunks if tenure in chunk]
-                        job=self.job_finder.findall(" ".join(match))
-                        print(job)
-                        entities=self.entity_recognition(" ".join(match))
-
+                        job=''
+                        if job_flag:
+                            match = [chunk for chunk in employ_chunks if tenure in chunk]
+                            job=self.job_finder.findall(" ".join(match))
+                            index_pivot = employ_chunks.index(match[0])
+                            if len(job)==0:
+                                job = self.job_finder.findall(" ".join(employ_chunks[index_pivot+1]))
+                                if len(job)!=0:
+                                    index_pivot+=1
+                                else:
+                                    job = self.job_finder.findall(" ".join(employ_chunks[index_pivot -1]))
+                            index_pivot +=1
+                        entities=self.entity_recognition(employ_chunks[index_pivot])
+                        location=''
+                        if 'ORG' or 'GPE' in entities.values():
+                            location=employ_chunks[index_pivot]
+                            index_pivot+=1
+                        description = ''
+                        for chunk in employ_chunks[index_pivot:]:
+                            if (len(service_tenures)!=(count+1) and service_tenures[count+1] in chunk):
+                                break
+                            else:
+                                description+=chunk
+                        result_exp.append({
+                            'years': tenure,
+                            'position': job[0].match,
+                            'location': location,
+                            'description': description
+                        })
+                        count+=1
+            print(result_exp)
         except Exception as e:
             print("Error in Extraction.experience function, Exception: %s" % e)
     def education(self):
@@ -233,21 +263,21 @@ if __name__ == '__main__':
     # obj4='/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Work_Samples/Osita Before.docx'
     # obj5='/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Work_Samples/Jason Before.pdf'
     # obj6='/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Sample_Folder_2/John before.docx.docx'
-    # for resume in glob.glob('/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Sample_Folder_2/*before.*'):
-    #     print(resume)
-    #     ex_obj=Extraction(resume)
-    #     # ex_obj.objective_statement()
-    #     ex_obj.experience()
-        # ex_obj.education()
-     for resume in glob.glob('../data/CV_Samples/CV_Samples/Work_Samples/*before.*'):
-        # data1= ResumeParser(resume).get_extracted_data()
-        # data3= resumeparse.convert_pdf_to_txt(resume)
+    for resume in glob.glob('/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Sample_Folder_2/*before.*'):
         print(resume)
-        segmented_text,raw_text,lines=load_doc(resume)
-        # print(data1)
-        file_name=os.path.basename(resume)
-        y = json.dumps(segmented_text)
-        with open('../data/CV_Samples/CV_Samples/resume_json/'+file_name+'.json','w+') as json_file:
-            json_file.write(y)
-        print(segmented_text['contact_info'])
-    #     print('\n \n')
+        ex_obj=Extraction(resume)
+        # ex_obj.objective_statement()
+        ex_obj.experience()
+        # ex_obj.education()
+     # for resume in glob.glob('/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Work_Samples/*before.*'):
+    #     # data1= ResumeParser(resume).get_extracted_data()
+    #     # data3= resumeparse.convert_pdf_to_txt(resume)
+    #     print(resume)
+    #     segmented_text,raw_text,lines=load_doc(resume)
+    #     # print(data1)
+    #     file_name=os.path.basename(resume)
+    #     y = json.dumps(segmented_text)
+    #     with open('/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/resume_json/'+file_name+'.json','w+') as json_file:
+    #         json_file.write(y)
+    #     print(segmented_text['contact_info'])
+        print('\n \n')
