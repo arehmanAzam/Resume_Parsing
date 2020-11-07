@@ -1,7 +1,7 @@
 from resume_parser import resumeparse
 import nltk
 import glob
-from LoadDocument import load_doc
+from .LoadDocument import load_doc
 import json
 import os
 import re
@@ -175,12 +175,13 @@ class Extraction:
                 # if len(contact_info)>4:
                 #     for string in contact_info:
                 #         if overall
+            return objective_summary
         except Exception as e:
             print("Error in Extraction.objective_statement function, Exception: %s" % e)
 
     def skills(self):
         try:
-            print(self.segmented_text['skills'])
+            return self.segmented_text['skills']
         except Exception as e:
             print("Error in Extraction.skills function, Exception: %s" % e)
     def entity_recognition(self,text):
@@ -202,7 +203,7 @@ class Extraction:
             if experience_section !=None or experience_section !='':
                 service_tenures=self.experience_years(experience_section)
                 job_flag=True
-                if len(service_tenures)>0:
+                if service_tenures!=None and len(service_tenures)>0:
                     count=0
                     for tenure in service_tenures:
                         job=''
@@ -215,11 +216,14 @@ class Extraction:
                                 if len(job)!=0:
                                     index_pivot+=1
                                 else:
-                                    job = self.job_finder.findall(" ".join(employ_chunks[index_pivot -1]))
-                            index_pivot +=1
+                                    if index_pivot > 0:
+                                        job = self.job_finder.findall(" ".join(employ_chunks[index_pivot -1]))
+                            if len(job) != 0:
+                                index_pivot +=1
+                                job=job[0].match
                         entities=self.entity_recognition(employ_chunks[index_pivot])
                         location=''
-                        if 'ORG' or 'GPE' in entities.values():
+                        if ('ORG' or 'GPE') in entities.values():
                             location=employ_chunks[index_pivot]
                             index_pivot+=1
                         description = ''
@@ -230,22 +234,27 @@ class Extraction:
                                 description+=chunk
                         result_exp.append({
                             'years': tenure,
-                            'position': job[0].match,
+                            'position': job,
                             'location': location,
                             'description': description
                         })
                         count+=1
-            print(result_exp)
+
+                else:
+                    result_exp.append({
+                        'description': experience_section
+                    })
+            return result_exp
         except Exception as e:
             print("Error in Extraction.experience function, Exception: %s" % e)
     def education(self):
         try:
-            print(self.segmented_text['education_and_training'])
+            return self.segmented_text['education_and_training']
         except Exception as e:
             print("Error in Extraction.education function, Exception: %s" % e)
     def accomplishments(self):
         try:
-            print(self.segmented_text['accomplishments'])
+            return self.segmented_text['accomplishments']
         except Exception as e:
             print("Error in Extraction.accomplishments function, Exception: %s" % e)
 
@@ -263,12 +272,13 @@ if __name__ == '__main__':
     # obj4='/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Work_Samples/Osita Before.docx'
     # obj5='/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Work_Samples/Jason Before.pdf'
     # obj6='/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Sample_Folder_2/John before.docx.docx'
-    for resume in glob.glob('/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Sample_Folder_2/*before.*'):
+    for resume in glob.glob('/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Sample_Folder_2/*before*'):
         print(resume)
         ex_obj=Extraction(resume)
         # ex_obj.objective_statement()
-        ex_obj.experience()
         # ex_obj.education()
+        # ex_obj.education()
+        print(ex_obj.overall_resume)
      # for resume in glob.glob('/home/abdulrehman/PycharmProjects/CV_parsing/data/CV_Samples/CV_Samples/Work_Samples/*before.*'):
     #     # data1= ResumeParser(resume).get_extracted_data()
     #     # data3= resumeparse.convert_pdf_to_txt(resume)
